@@ -18,6 +18,7 @@ import javax.jms.JMSException;
 import javax.jms.Session;
 
 @Configuration
+@EnableJms
 public class AppConfig {
 
     @Bean
@@ -31,7 +32,6 @@ public class AppConfig {
     @Bean
     public MessageConverter messageConverter() {
         var converter = new MappingJackson2MessageConverter();
-
         converter.setTargetType(MessageType.TEXT);
         converter.setObjectMapper(objectMapper());
 
@@ -41,9 +41,7 @@ public class AppConfig {
     @Bean
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
-
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
 
         return mapper;
     }
@@ -66,13 +64,7 @@ public class AppConfig {
         return new DynamicDestinationResolver() {
             @Override
             public Destination resolveDestinationName(Session session, String destinationName, boolean pubSubDomain) throws JMSException {
-                if(destinationName.endsWith("Topic")) {
-                    pubSubDomain = true;
-                }
-                else {
-                    pubSubDomain = false;
-                }
-                return super.resolveDestinationName(session,destinationName,pubSubDomain);
+                return super.resolveDestinationName(session,destinationName, false);
             }
         };
     }

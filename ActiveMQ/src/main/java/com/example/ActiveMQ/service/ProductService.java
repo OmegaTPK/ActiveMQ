@@ -6,14 +6,21 @@ import com.example.ActiveMQ.dto.ProductDto;
 import com.example.ActiveMQ.entity.ProductEntity;
 import com.example.ActiveMQ.repository.ProductRepository;
 import lombok.AllArgsConstructor;
+import org.apache.activemq.plugin.DiscardingDLQBroker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import javax.transaction.Transactional;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.activemq.plugin.ForcePersistencyModeBroker.log;
+
 @Service
 @AllArgsConstructor
+@Transactional
 public class ProductService {
 
     private final ProductRepository productRepository;
@@ -22,7 +29,7 @@ public class ProductService {
     private final ProductConverter productConverter;
 
     public String sendProductsToMigrate(){
-        Integer itemsCount;
+        int itemsCount;
         List<ProductEntity> productEntities;
         Set<ProductDto> productDtos;
 
@@ -33,12 +40,25 @@ public class ProductService {
                 .map(productConverter::convertEntityToDto)
                 .collect(Collectors.toSet());
 
-        activeMQProducer.sendNonMigratedItems(productDtos);
+        if(!productDtos.isEmpty()){
+            activeMQProducer.sendNonMigratedItems(productDtos);
+        }
 
-        return SENT_PRODUCTS_MESSAGE + itemsCount.toString();
+        return SENT_PRODUCTS_MESSAGE + itemsCount;
     }
 
-    public void processIncomingItem(List<ProductDto> items){
+    public void migrateIncomingProducts(Set<ProductDto> items){
+        items.stream()
+                .forEach((ProductDto item ) -> migrateProduct(item.getId()));
+    }
 
+    private void migrateProduct(Long id){
+        ProductEntity product;
+
+        product = productRepository.getReferenceById(id);
+        if (!product.getMigrated()){
+            product.setMigrated(Boolean.TRUE);
+            log.info(product.getName() + " was migrated");
+        }
     }
 }
