@@ -17,16 +17,16 @@ import java.util.stream.Collectors;
 public class ProductService {
 
     private final ProductRepository productRepository;
-    private final String SENT_ITEMS_MESSAGE = "Items number sent to migrate: ";
+    private final String SENT_PRODUCTS_MESSAGE = "Products number sent to migrate: ";
     private final ActiveMQProducer activeMQProducer;
     private final ProductConverter productConverter;
 
-    public String sendItems(){
+    public String sendProductsToMigrate(){
         Integer itemsCount;
         List<ProductEntity> productEntities;
         Set<ProductDto> productDtos;
 
-        productEntities = productRepository.findByMigrated(Boolean.TRUE);
+        productEntities = productRepository.findByMigrated(Boolean.FALSE);
         itemsCount = productEntities.size();
 
         productDtos = productEntities.stream()
@@ -35,7 +35,7 @@ public class ProductService {
 
         activeMQProducer.sendNonMigratedItems(productDtos);
 
-        return SENT_ITEMS_MESSAGE + itemsCount.toString();
+        return SENT_PRODUCTS_MESSAGE + itemsCount.toString();
     }
 
     public void processIncomingItem(List<ProductDto> items){
