@@ -3,6 +3,7 @@ package com.example.ActiveMQ.entity;
 import lombok.*;
 
 import javax.persistence.*;
+import java.time.Instant;
 import java.util.Objects;
 
 @Entity
@@ -22,6 +23,10 @@ public class ProductEntity {
     private Double price;
     @Column
     private Boolean migrated;
+    @Column
+    private Instant creationDate;
+    @Column
+    private int migrationFailed;
 
     @Override
     public boolean equals(Object o) {

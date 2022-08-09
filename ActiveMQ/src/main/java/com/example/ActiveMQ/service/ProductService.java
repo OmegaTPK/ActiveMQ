@@ -1,64 +1,102 @@
 package com.example.ActiveMQ.service;
 
 import com.example.ActiveMQ.activeMq.ActiveMQProducer;
-import com.example.ActiveMQ.converter.ProductConverter;
-import com.example.ActiveMQ.dto.ProductDto;
 import com.example.ActiveMQ.entity.ProductEntity;
 import com.example.ActiveMQ.repository.ProductRepository;
 import lombok.AllArgsConstructor;
-import org.apache.activemq.plugin.DiscardingDLQBroker;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import javax.transaction.Transactional;
-import java.util.List;
-import java.util.Set;
+import java.time.Instant;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.apache.activemq.plugin.ForcePersistencyModeBroker.log;
 
 @Service
 @AllArgsConstructor
-@Transactional
+@Async
 public class ProductService {
 
     private final ProductRepository productRepository;
-    private final String SENT_PRODUCTS_MESSAGE = "Products number sent to migrate: ";
     private final ActiveMQProducer activeMQProducer;
-    private final ProductConverter productConverter;
+    private final int PAGE_SIZE = 1000;
+    private final String SUCCESS_MESSAGE = "Migrated product with id: ";
+    private final String FAIL_MESSAGE = "Not migrated product with id: ";
+    private final String FAILD_MIGRATION_TIMES_MESSAGE = ". For now product faild migration times: ";
+    private final String CANT_DELETE_MESSAGE = "Cant delete migrated products: ";
+    private final String CANT_SAVE_MESSAGE = "Cant save failed migrations: ";
 
-    public String sendProductsToMigrate(){
-        int itemsCount;
-        List<ProductEntity> productEntities;
-        Set<ProductDto> productDtos;
+    public void sendingProductsInQueue(){
+        Sort sort = Sort.by("id");
+        Instant currentInstant = Instant.now();
+        Pageable pageable = PageRequest.of(0, PAGE_SIZE, sort);
+        Page<ProductEntity> page = productRepository.findProductForMigration(pageable, currentInstant);
+        Set<Set<Long>> queue = new HashSet<>();
+        while (true) {
+            Set<Long> productDtos = page.getContent()
+                    .stream()
+                    .map(product -> (product.getId()))
+                    .collect(Collectors.toSet());
+            if (!productDtos.isEmpty()){
+                queue.add(productDtos);
+            }
+            if (!page.hasNext()) {
+                break;
+            }
+            page = productRepository.findProductForMigration(page.nextPageable(), currentInstant);
+        }
+        if (!queue.isEmpty()){
+            queue.stream().forEach(activeMQProducer::sendNonMigratedItems);
+        }
+    }
 
-        productEntities = productRepository.findByMigrated(Boolean.FALSE);
-        itemsCount = productEntities.size();
+    public void generate(Long count){
+        List<ProductEntity> entities = new ArrayList<>();
+        for (int i = 0; i<count; i++){
+            ProductEntity entity = ProductEntity.builder().name("Test").migrated(false).creationDate(Instant.now()).price((double) 0L).build();
+            entities.add(entity);
+        }
+        productRepository.saveAll(entities);
+    }
 
-        productDtos = productEntities.stream()
-                .map(productConverter::convertEntityToDto)
-                .collect(Collectors.toSet());
+    @Transactional
+    public void migrateIncomingProducts(List<Long> listId){
+        List<ProductEntity> entities = productRepository.findByMigrationList(listId);
+        List<ProductEntity> failedMigration = new ArrayList<>();
+        List<ProductEntity> successfulMigration = new ArrayList<>();
 
-        if(!productDtos.isEmpty()){
-            activeMQProducer.sendNonMigratedItems(productDtos);
+        for (ProductEntity entity:entities){
+            try{
+                entity.setMigrated(true); //doing some migration
+                successfulMigration.add(entity);
+                log.info(SUCCESS_MESSAGE + entity.getId());
+            } catch (Exception e){
+                entity.setMigrationFailed(entity.getMigrationFailed()+1);
+                failedMigration.add(entity);
+                log.info(FAIL_MESSAGE + entity.getId() + FAILD_MIGRATION_TIMES_MESSAGE + entity.getMigrationFailed());
+            }
         }
 
-        return SENT_PRODUCTS_MESSAGE + itemsCount;
-    }
+        if(!successfulMigration.isEmpty()){
+            try {
+                productRepository.deleteAll(successfulMigration);
+            } catch (Exception e) {
+                log.info(CANT_DELETE_MESSAGE + e.getMessage());
+            }
+        }
 
-    public void migrateIncomingProducts(Set<ProductDto> items){
-        items.stream()
-                .forEach((ProductDto item ) -> migrateProduct(item.getId()));
-    }
-
-    private void migrateProduct(Long id){
-        ProductEntity product;
-
-        product = productRepository.getReferenceById(id);
-        if (!product.getMigrated()){
-            product.setMigrated(Boolean.TRUE);
-            log.info(product.getName() + " was migrated");
+        if(!failedMigration.isEmpty()){
+            try {
+                productRepository.saveAll(failedMigration);
+            } catch (Exception e) {
+                log.info(CANT_SAVE_MESSAGE + e.getMessage());
+            }
         }
     }
 }

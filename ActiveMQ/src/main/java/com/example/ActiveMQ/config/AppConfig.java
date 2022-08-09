@@ -12,10 +12,13 @@ import org.springframework.jms.support.converter.MappingJackson2MessageConverter
 import org.springframework.jms.support.converter.MessageConverter;
 import org.springframework.jms.support.converter.MessageType;
 import org.springframework.jms.support.destination.DynamicDestinationResolver;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Session;
+import java.util.concurrent.Executor;
 
 @Configuration
 @EnableJms
