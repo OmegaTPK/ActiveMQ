@@ -22,40 +22,30 @@ import static org.apache.activemq.plugin.ForcePersistencyModeBroker.log;
 @AllArgsConstructor
 @Transactional
 public class ProductService {
-
     private final ProductRepository productRepository;
-    private final String SENT_PRODUCTS_MESSAGE = "Products number sent to migrate: ";
+    private static final String SENT_PRODUCTS_MESSAGE = "Products number sent to migrate: ";
     private final ActiveMQProducer activeMQProducer;
     private final ProductConverter productConverter;
 
     public String sendProductsToMigrate(){
-        int itemsCount;
-        List<ProductEntity> productEntities;
-        Set<ProductDto> productDtos;
+        List<ProductEntity> productEntities = productRepository.findByMigrated(Boolean.FALSE);
 
-        productEntities = productRepository.findByMigrated(Boolean.FALSE);
-        itemsCount = productEntities.size();
-
-        productDtos = productEntities.stream()
+        Set<ProductDto> productDtoList = productEntities.stream()
                 .map(productConverter::convertEntityToDto)
                 .collect(Collectors.toSet());
 
-        if(!productDtos.isEmpty()){
-            activeMQProducer.sendNonMigratedItems(productDtos);
+        if(!productDtoList.isEmpty()){
+            activeMQProducer.sendNonMigratedItems(productDtoList);
         }
 
-        return SENT_PRODUCTS_MESSAGE + itemsCount;
+        return SENT_PRODUCTS_MESSAGE + productDtoList.size();
     }
 
-    public void migrateIncomingProducts(Set<ProductDto> items){
-        items.stream()
-                .forEach((ProductDto item ) -> migrateProduct(item.getId()));
+    public void migrateIncomingProducts(List<Long> productIdList){
+        productRepository.findAllById(productIdList).forEach((this::migrateProduct));
     }
 
-    private void migrateProduct(Long id){
-        ProductEntity product;
-
-        product = productRepository.getReferenceById(id);
+    private void migrateProduct(ProductEntity product){
         if (!product.getMigrated()){
             product.setMigrated(Boolean.TRUE);
             log.info(product.getName() + " was migrated");

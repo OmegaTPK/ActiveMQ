@@ -4,6 +4,8 @@ import com.example.ActiveMQ.dto.ProductDto;
 import com.example.ActiveMQ.service.ProductService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
@@ -24,7 +26,6 @@ import static org.apache.activemq.plugin.ForcePersistencyModeBroker.log;
 @Component
 @AllArgsConstructor
 public class ActiveMQConsumer {
-
     private ProductService productService;
     private ObjectMapper objectMapper;
 
@@ -32,12 +33,15 @@ public class ActiveMQConsumer {
     @JmsListener(destination = "ProductMigration")
     public void processMessages(Message message) {
         String messageData = null;
-        if(message instanceof TextMessage) {
-            TextMessage textMessage = (TextMessage) message;
+        if(message instanceof TextMessage textMessage) {
             messageData = textMessage.getText();
         }
-        Set<ProductDto> productDtos = objectMapper.readValue(messageData, new TypeReference<Set<ProductDto>>(){});
-        productService.migrateIncomingProducts(productDtos);
+        List<Long> productIdList = objectMapper
+                .readValue(messageData, new TypeReference<List<ProductDto>>(){})
+                .stream()
+                .map(ProductDto::getId)
+                .toList();
+        productService.migrateIncomingProducts(productIdList);
     }
 
 }
