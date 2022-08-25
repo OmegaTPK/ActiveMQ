@@ -31,7 +31,7 @@ public class AppConfig {
 
     @Bean
     public MessageConverter messageConverter() {
-        var converter = new MappingJackson2MessageConverter();
+        MappingJackson2MessageConverter converter = new MappingJackson2MessageConverter();
         converter.setTargetType(MessageType.TEXT);
         converter.setObjectMapper(objectMapper());
 

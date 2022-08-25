@@ -10,7 +10,6 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode
 public class ProductDto implements Serializable {
     private Long id;
 }

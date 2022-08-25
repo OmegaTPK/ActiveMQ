@@ -1,29 +1,31 @@
 package com.example.ActiveMQ;
 
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.example.ActiveMQ.activeMq.ActiveMQProducer;
 import com.example.ActiveMQ.converter.ProductConverter;
 import com.example.ActiveMQ.dto.ProductDto;
 import com.example.ActiveMQ.entity.ProductEntity;
 import com.example.ActiveMQ.repository.ProductRepository;
 import com.example.ActiveMQ.service.ProductService;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
-
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 public class ProductServiceTest {
 
@@ -55,6 +57,9 @@ public class ProductServiceTest {
     private Set<ProductDto> non_migrated_dto_set;
     private List<ProductEntity> migrated_entities_list;
     private Set<ProductDto> migrated_dto_set;
+    private List<Long> nonMigratedProductIdsList;
+    private List<Long> migratedProductIdsList;
+
 
 
     @BeforeEach
@@ -83,6 +88,7 @@ public class ProductServiceTest {
         non_migrated_dto_set = new HashSet<>();
         non_migrated_dto_set.add(non_migrated_dto_1);
         non_migrated_dto_set.add(non_migrated_dto_2);
+        nonMigratedProductIdsList = non_migrated_dto_set.stream().map(ProductDto::getId).toList();
 
         migrated_dto_1 = new ProductDto(PRODUCT_ID_3);
         migrated_dto_2 = new ProductDto(PRODUCT_ID_4);
@@ -106,6 +112,7 @@ public class ProductServiceTest {
         migrated_dto_set = new HashSet<>();
         migrated_dto_set.add(migrated_dto_1);
         migrated_dto_set.add(migrated_dto_2);
+        migratedProductIdsList = migrated_dto_set.stream().map(ProductDto::getId).toList();
 
         when(productConverter.convertEntityToDto(non_migrated_entity_1)).thenReturn(non_migrated_dto_1);
         when(productConverter.convertEntityToDto(non_migrated_entity_2)).thenReturn(non_migrated_dto_2);
@@ -152,7 +159,7 @@ public class ProductServiceTest {
 
     @Test
     public void migrateIncomingProducts_SetNonMigratedProductsDtos_TurnMigratedInEntityToTrue(){
-        productService.migrateIncomingProducts(non_migrated_dto_set);
+        productService.migrateIncomingProducts(nonMigratedProductIdsList);
 
         assertTrue(non_migrated_entity_1.getMigrated());
         assertTrue(non_migrated_entity_2.getMigrated());
@@ -162,7 +169,7 @@ public class ProductServiceTest {
 
     @Test
     public void migrateIncomingProducts_SetMigratedProductsDtos_NothingChange(){
-        productService.migrateIncomingProducts(migrated_dto_set);
+        productService.migrateIncomingProducts(migratedProductIdsList);
 
         assertTrue(migrated_entity_1.getMigrated());
         assertTrue(migrated_entity_2.getMigrated());

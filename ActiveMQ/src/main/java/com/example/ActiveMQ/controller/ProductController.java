@@ -11,11 +11,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(path = {"/api"})
 @AllArgsConstructor
 public class ProductController {
-
     private final ProductService productService;
 
     @PostMapping(path = "/migrate")
-    public ResponseEntity<String> migrateProducts(){
+    public ResponseEntity<String> migrateProducts() {
         return ResponseEntity.ok(productService.sendProductsToMigrate());
     }
 }
