@@ -29,26 +29,16 @@ public class ProductService {
 
     public String sendProductsToMigrate(){
         List<ProductEntity> productEntities = productRepository.findByMigrated(Boolean.FALSE);
-
-        Set<ProductDto> productDtoList = productEntities.stream()
+        Set<ProductDto> productDtoSet = productEntities.stream()
                 .map(productConverter::convertEntityToDto)
                 .collect(Collectors.toSet());
-
-        if(!productDtoList.isEmpty()){
-            activeMQProducer.sendNonMigratedItems(productDtoList);
+        if(!productDtoSet.isEmpty()){
+            activeMQProducer.sendNonMigratedItems(productDtoSet);
         }
-
-        return SENT_PRODUCTS_MESSAGE + productDtoList.size();
+        return SENT_PRODUCTS_MESSAGE + productDtoSet.size();
     }
 
     public void migrateIncomingProducts(List<Long> productIdList){
-        productRepository.findAllById(productIdList).forEach((this::migrateProduct));
-    }
-
-    private void migrateProduct(ProductEntity product){
-        if (!product.getMigrated()){
-            product.setMigrated(Boolean.TRUE);
-            log.info(product.getName() + " was migrated");
-        }
+        productRepository.setMigratedTrueByIdList(productIdList);
     }
 }

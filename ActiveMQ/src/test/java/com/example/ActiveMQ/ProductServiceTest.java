@@ -61,7 +61,6 @@ public class ProductServiceTest {
     private List<Long> migratedProductIdsList;
 
 
-
     @BeforeEach
     public void prepareToTest() {
         MockitoAnnotations.openMocks(this);
@@ -129,7 +128,7 @@ public class ProductServiceTest {
     }
 
     @Test
-    public void sendProductsToMigrate_existNonMigratedProducts_MessageWithRightCountOfProducts(){
+    public void sendProductsToMigrate_existNonMigratedProducts_MessageWithRightCountOfProducts() {
         String resultString;
         String expectedString = SENT_PRODUCTS_MESSAGE + "2";
         when(productRepository.findByMigrated(Boolean.FALSE)).thenReturn(non_migrated_entities_list);
@@ -144,7 +143,7 @@ public class ProductServiceTest {
     }
 
     @Test
-    public void sendProductsToMigrate_NotExistNonMigratedProducts_MessageWithZeroCountOfProducts(){
+    public void sendProductsToMigrate_NotExistNonMigratedProducts_MessageWithZeroCountOfProducts() {
         String resultString;
         String expectedString = SENT_PRODUCTS_MESSAGE + "0";
         when(productRepository.findByMigrated(Boolean.FALSE)).thenReturn(new ArrayList<>());
@@ -155,26 +154,6 @@ public class ProductServiceTest {
         verify(productRepository).findByMigrated(Boolean.FALSE);
         verify(productConverter, never()).convertEntityToDto(any());
         verify(activeMQProducer, never()).sendNonMigratedItems(any());
-    }
-
-    @Test
-    public void migrateIncomingProducts_SetNonMigratedProductsDtos_TurnMigratedInEntityToTrue(){
-        productService.migrateIncomingProducts(nonMigratedProductIdsList);
-
-        assertTrue(non_migrated_entity_1.getMigrated());
-        assertTrue(non_migrated_entity_2.getMigrated());
-        verify(productRepository).getReferenceById(PRODUCT_ID_1);
-        verify(productRepository).getReferenceById(PRODUCT_ID_2);
-    }
-
-    @Test
-    public void migrateIncomingProducts_SetMigratedProductsDtos_NothingChange(){
-        productService.migrateIncomingProducts(migratedProductIdsList);
-
-        assertTrue(migrated_entity_1.getMigrated());
-        assertTrue(migrated_entity_2.getMigrated());
-        verify(productRepository).getReferenceById(PRODUCT_ID_3);
-        verify(productRepository).getReferenceById(PRODUCT_ID_4);
     }
 
 }
